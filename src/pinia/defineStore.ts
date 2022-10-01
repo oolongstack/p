@@ -4,11 +4,14 @@ import {
   inject,
   reactive,
   computed,
+  toRefs,
   isRef,
   isReactive,
+  watch,
 } from "vue";
 import type { EffectScope } from "vue";
 import { Pinia, piniaSymbol } from "./rootStore";
+import { isObject } from "@vue/shared";
 
 type WithIdOptions = {
   id: string;
@@ -40,7 +43,7 @@ export function defineStore(idOrOptions: string | WithIdOptions, setup: any) {
       if (isSetupStore) {
         createSetupStore(id, setup, pinia!, false);
       } else {
-        createOptionStore(id, options, pinia!);
+        createOptionsStore(id, options, pinia!);
       }
     }
     const store = pinia?._s.get(id);
@@ -51,7 +54,7 @@ export function defineStore(idOrOptions: string | WithIdOptions, setup: any) {
   return useStore;
 }
 
-function createOptionStore(
+function createOptionsStore(
   id: string,
   options: Record<PropertyKey, any>,
   pinia: Pinia
@@ -60,7 +63,8 @@ function createOptionStore(
 
   function setup() {
     // 会对用户传递的数据进行处理
-    const loaclState = (pinia.state.value[id] = state ? state() : {});
+    pinia.state.value[id] = state ? state() : {};
+    const loaclState = toRefs(pinia.state.value[id]);
     Object.assign(
       loaclState,
       actions,
@@ -75,7 +79,27 @@ function createOptionStore(
     return loaclState;
   }
   // isOption
-  return createSetupStore(id, setup, pinia, true);
+  const store = createSetupStore(id, setup, pinia, true);
+
+  store.$reset = function () {
+    const newState = state ? state() : {};
+    store.$patch((state: any) => {
+      Object.assign(state, newState);
+    });
+  };
+  return store;
+}
+function mergeReactiveObject(target: any, state: any) {
+  for (const key in state) {
+    let oldValue = target[key];
+    let newValue = state[key];
+    if (isObject(oldValue) && isObject(newValue)) {
+      target[key] = mergeReactiveObject(oldValue, newValue);
+    } else {
+      target[key] = newValue;
+    }
+  }
+  return target;
 }
 
 function createSetupStore(
@@ -85,7 +109,28 @@ function createSetupStore(
   isOption: boolean
 ) {
   let scope: EffectScope;
-  const store = reactive<any>({});
+  const partialStore = {
+    $patch,
+    $subscribe(callback: ({}: any, newVal: any) => void, options?: any) {
+      scope.run(() =>
+        watch(
+          pinia.state.value[id],
+          (newVal) => {
+            callback({ storeId: id }, newVal);
+          },
+          options
+        )
+      );
+    },
+  };
+  function $patch(partialStateOrMutatior: any) {
+    if (isObject(partialStateOrMutatior)) {
+      mergeReactiveObject(pinia.state.value[id], partialStateOrMutatior);
+    } else {
+      partialStateOrMutatior(pinia.state.value[id]);
+    }
+  }
+  const store = reactive<any>(partialStore);
   // 对于setupStore，initial目前不存在
   const initialState = pinia.state.value[id];
   if (!initialState && !isOption) {

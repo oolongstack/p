@@ -5,6 +5,7 @@ export const useCounterStore = defineStore("counter", {
   state() {
     return {
       count: 0,
+      fruits: ["apple", "banana", "peer"],
     };
   },
   getters: {

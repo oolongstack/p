@@ -1,4 +1,11 @@
-import { getCurrentInstance, inject } from "vue";
+import {
+  effectScope,
+  getCurrentInstance,
+  inject,
+  reactive,
+  computed,
+} from "vue";
+import type { EffectScope } from "vue";
 import { Pinia, piniaSymbol } from "./rootStore";
 
 type WithIdOptions = {
@@ -17,13 +24,84 @@ export function defineStore(idOrOptions: string | WithIdOptions, setup: any) {
     id = idOrOptions.id;
   }
   // 可能setup是个函数
+  const isSetupStore = typeof setup === "function";
 
   function useStore(): any {
     // 组件中调用方法时，看是否已经使用过该模块
     const instance = getCurrentInstance();
     const pinia = instance && inject<Pinia>(piniaSymbol)!;
-    console.log(pinia, id, options);
+    if (!pinia?._s.has(id)) {
+      // 第一次useStore
+      if (isSetupStore) {
+        createSetupStore(id, setup, pinia);
+      } else {
+        createOptionStore(id, options, pinia!);
+      }
+    }
+    const store = pinia?._s.get(id);
+
+    return store;
   }
 
   return useStore;
+}
+
+function createOptionStore(
+  id: string,
+  options: Record<PropertyKey, any>,
+  pinia: Pinia
+) {
+  const { state, getters, actions } = options;
+
+  function setup() {
+    // 会对用户传递的数据进行处理
+    const loaclState = (pinia.state.value[id] = state ? state() : {});
+    Object.assign(
+      loaclState,
+      actions,
+      Object.keys(getters || {}).reduce((memo: any, computedName: string) => {
+        memo[computedName] = computed(() => {
+          const store = pinia._s.get(id);
+          return getters[computedName].call(store);
+        });
+        return memo;
+      }, {})
+    );
+    return loaclState;
+  }
+
+  return createSetupStore(id, setup, pinia);
+}
+
+function createSetupStore(id: string, setup: () => any, pinia: Pinia) {
+  let scope: EffectScope;
+  const store = reactive<any>({});
+
+  const setupStore = pinia._e.run(() => {
+    scope = effectScope();
+    // 父亲能停止所有，自己也能停止自己
+    return scope.run(() => {
+      return setup();
+    });
+  });
+
+  // 包裹action，this指向处理，异步处理
+  function wrapAction(name: string, action: () => any) {
+    return (...args: []) => {
+      let ret = action.apply(store, args);
+
+      return ret;
+    };
+  }
+  for (const key in setupStore) {
+    const prop = setupStore[key];
+    if (typeof prop === "function") {
+      setupStore[key] = wrapAction(key, prop);
+    }
+  }
+
+  Object.assign(store, setupStore);
+
+  pinia._s.set(id, store);
+  return store;
 }

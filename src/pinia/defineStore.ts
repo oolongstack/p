@@ -208,6 +208,14 @@ function createSetupStore(
       });
     },
   });
+  store.$id = id;
+
+  // 应用插件
+  pinia._p.forEach((plugin) =>
+    scope.run(() => {
+      plugin({ store });
+    })
+  );
   pinia._s.set(id, store);
 
   return store;

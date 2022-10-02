@@ -11,6 +11,10 @@ export function createPinia(): Pinia {
       app.config.globalProperties.$pinia = pinia;
       pinia._a = app;
     },
+    use(plugin) {
+      pinia._p.push(plugin);
+    },
+    _p: [],
     _s: new Map(),
     _a: null,
     state,

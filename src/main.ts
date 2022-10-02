@@ -34,6 +34,16 @@ import App from "./App.vue";
 // }, 2000);
 
 const pinia = createPinia();
+pinia.use(({ store }) => {
+  const local = localStorage.getItem(store.$id + "_PINIA_STATE");
+  if (local) {
+    store.$state = JSON.parse(local);
+  }
+
+  store.$subscribe(({ storeId }, state) => {
+    localStorage.setItem(storeId + "_PINIA_STATE", JSON.stringify(state));
+  });
+});
 const app = createApp(App);
 app.use(pinia);
 app.mount("#app");

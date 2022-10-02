@@ -13,14 +13,14 @@ export interface Pinia {
    *
    * @param plugin - store plugin to add
    */
-  // use(plugin: PiniaPlugin): Pinia;
+  use(plugin: any): any;
 
   // /**
   //  * Installed store plugins
   //  *
   //  * @internal
   //  */
-  // _p: PiniaPlugin[];
+  _p: any[];
 
   /**
    * App linked to this Pinia instance

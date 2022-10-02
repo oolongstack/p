@@ -11,6 +11,8 @@
   <button @click="handlePatch">$patch</button>
   <br />
   <button @click="counterStore.$reset()">$reset</button>
+  <br />
+  <button @click="counterStore.$state = { count: 999 }">$state</button>
   <div>--------------------------------------</div>
   <p>count:{{ counterStore1.count }}</p>
   <p>double count:{{ counterStore1.double }}</p>

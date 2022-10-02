@@ -124,6 +124,11 @@ function createSetupStore(
       );
     },
     $onAction: addSubscription.bind(null, actionSubscriptions),
+    $dispose() {
+      scope.stop(); // 清除响应式
+      actionSubscriptions.length = 0;
+      pinia._s.delete(id);
+    },
   };
   function $patch(partialStateOrMutatior: any) {
     if (isObject(partialStateOrMutatior)) {
@@ -161,7 +166,6 @@ function createSetupStore(
       let ret;
       try {
         ret = action.apply(store, args);
-        triggerSubscriptions(afterCallbackList, ret);
       } catch (error) {
         triggerSubscriptions(onErrorCallbackList, error);
       }
@@ -174,6 +178,7 @@ function createSetupStore(
             triggerSubscriptions(onErrorCallbackList, error);
           });
       }
+      triggerSubscriptions(afterCallbackList, ret);
       return ret;
     };
   }
@@ -193,10 +198,17 @@ function createSetupStore(
   }
 
   Object.assign(store, setupStore);
-
+  Object.defineProperty(store, "$state", {
+    get() {
+      return pinia.state.value[id];
+    },
+    set(newState) {
+      store.$patch((state) => {
+        Object.assign(state, newState);
+      });
+    },
+  });
   pinia._s.set(id, store);
-
-  console.log(pinia);
 
   return store;
 }

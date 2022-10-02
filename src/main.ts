@@ -1,6 +1,7 @@
 import { createApp, effectScope, effect, ref, EffectScope } from "vue";
 // import { createPinia } from "pinia";
 import { createPinia } from "./pinia";
+import { useCounterStore } from "./store/counter";
 import App from "./App.vue";
 
 // const scope = effectScope(true);
@@ -44,6 +45,11 @@ pinia.use(({ store }) => {
     localStorage.setItem(storeId + "_PINIA_STATE", JSON.stringify(state));
   });
 });
+
 const app = createApp(App);
 app.use(pinia);
+
+// 不在组件里使用
+const store = useCounterStore();
+console.log("store: ", store);
 app.mount("#app");

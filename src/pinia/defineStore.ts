@@ -13,6 +13,7 @@ import type { EffectScope } from "vue";
 import { Pinia, piniaSymbol } from "./rootStore";
 import { isObject } from "@vue/shared";
 import { addSubscription, triggerSubscriptions } from "./subscribe";
+import { activePinia, setActivePinia } from "./createPinia";
 type WithIdOptions = {
   id: string;
   [key: string]: any;
@@ -37,7 +38,11 @@ export function defineStore(idOrOptions: string | WithIdOptions, setup: any) {
   function useStore(): any {
     // 组件中调用方法时，看是否已经使用过该模块
     const instance = getCurrentInstance();
-    const pinia = instance && inject<Pinia>(piniaSymbol)!;
+    let pinia = instance && inject<Pinia>(piniaSymbol)!;
+    if (pinia) {
+      setActivePinia(pinia);
+    }
+    pinia = activePinia! as Pinia;
     if (!pinia?._s.has(id)) {
       // 第一次useStore
       if (isSetupStore) {

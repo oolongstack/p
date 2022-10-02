@@ -10,7 +10,7 @@
   <br />
   <button @click="handlePatch">$patch</button>
   <br />
-  <button @click="counterStore.$reset()">$patch</button>
+  <button @click="counterStore.$reset()">$reset</button>
   <div>--------------------------------------</div>
   <p>count:{{ counterStore1.count }}</p>
   <p>double count:{{ counterStore1.double }}</p>
@@ -24,16 +24,26 @@ import { useCounterStore1 } from "./store/counterfn";
 const counterStore = useCounterStore();
 const counterStore1 = useCounterStore1();
 const handlePatch = () => {
-  // counterStore.$patch({
-  //   count: 1000,
-  // });
-  counterStore.$patch((state: any) => {
-    state.fruits.push("watermelon");
+  counterStore.$patch({
+    count: 1000,
   });
+  // counterStore.$patch((state: any) => {
+  //   state.fruits.push("watermelon");
+  // });
 };
 
-counterStore.$subscribe(({ storeId }, newVal: any) => {
-  console.log("storeInfo: any, state: any: ", storeId, newVal);
+// counterStore.$subscribe(({ storeId }, newVal: any) => {
+//   console.log("storeInfo: any, state: any: ", storeId, newVal);
+// });
+
+counterStore.$onAction(({ after, onError }) => {
+  console.log("action running");
+  after((val) => {
+    console.log("action after", val);
+  });
+  onError((err) => {
+    console.log("action error", err);
+  });
 });
 </script>
 

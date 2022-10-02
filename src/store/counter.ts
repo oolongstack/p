@@ -15,7 +15,14 @@ export const useCounterStore = defineStore("counter", {
   },
   actions: {
     add(payload: number) {
+      // return new Promise((resolve) => {
+      //   setTimeout(() => {
+      //     this.count += payload;
+      //     resolve("chenggong");
+      //   }, 1000);
+      // });
       this.count += payload;
+      return 111;
     },
   },
 });

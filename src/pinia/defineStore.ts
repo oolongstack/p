@@ -12,7 +12,7 @@ import {
 import type { EffectScope } from "vue";
 import { Pinia, piniaSymbol } from "./rootStore";
 import { isObject } from "@vue/shared";
-
+import { addSubscription, triggerSubscriptions } from "./subscribe";
 type WithIdOptions = {
   id: string;
   [key: string]: any;
@@ -109,6 +109,7 @@ function createSetupStore(
   isOption: boolean
 ) {
   let scope: EffectScope;
+  let actionSubscriptions = [];
   const partialStore = {
     $patch,
     $subscribe(callback: ({}: any, newVal: any) => void, options?: any) {
@@ -122,6 +123,7 @@ function createSetupStore(
         )
       );
     },
+    $onAction: addSubscription.bind(null, actionSubscriptions),
   };
   function $patch(partialStateOrMutatior: any) {
     if (isObject(partialStateOrMutatior)) {
@@ -147,8 +149,31 @@ function createSetupStore(
   // 包裹action，this指向处理，异步处理
   function wrapAction(name: string, action: () => any) {
     return (...args: []) => {
-      let ret = action.apply(store, args);
-
+      const afterCallbackList: any[] = [];
+      const onErrorCallbackList: any[] = [];
+      function after(cb) {
+        afterCallbackList.push(cb);
+      }
+      function onError(cb) {
+        onErrorCallbackList.push(cb);
+      }
+      triggerSubscriptions(actionSubscriptions, { after, onError });
+      let ret;
+      try {
+        ret = action.apply(store, args);
+        triggerSubscriptions(afterCallbackList, ret);
+      } catch (error) {
+        triggerSubscriptions(onErrorCallbackList, error);
+      }
+      if (ret instanceof Promise) {
+        return ret
+          .then((val: any) => {
+            triggerSubscriptions(afterCallbackList, val);
+          })
+          .catch((error: any) => {
+            triggerSubscriptions(onErrorCallbackList, error);
+          });
+      }
       return ret;
     };
   }
